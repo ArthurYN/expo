@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Dino Run</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        #game-container {
+            display: none;
+            position: relative;
+            width: 600px;
+            height: 200px;
+            border: 2px solid black;
+            margin: 20px auto;
+            background-color: white;
+            overflow: hidden;
+        }
+        #character {
+            width: 50px;
+            height: 50px;
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+        }
+        .obstacle {
+            width: 20px;
+            height: 70px;
+            position: absolute;
+            bottom: 20px;
+            right: 0;
+            background-color: red;
+        }
+        #start-button, #restart-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        #pixel-grid {
+            display: grid;
+            gap: 1px;
+            margin: 20px auto;
+            width: max-content;
+            border: 1px solid #ccc;
+        }
+        .pixel {
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+        #game-over {
+            display: none;
+            font-size: 24px;
+            color: red;
+            margin-top: 20px;
+        }
+        #score {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Game Expo TIK</h1>
+    <div id="pixel-art-maker">
+        <div id="pixel-grid"></div>
+        <button id="start-button">Start Game</button>
+    </div>
+    
+    <div id="game-container">
+        <canvas id="character" width="50" height="50"></canvas>
+        <div id="game-over">Game Over</div>
+        <button id="restart-button" style="display: none;">Restart</button>
+        <div id="score">Score: 0</div>
+    </div>
+
+    <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const grid = document.getElementById("pixel-grid");
+    const startButton = document.getElementById("start-button");
+    const restartButton = document.getElementById("restart-button");
+    const gameOverText = document.getElementById("game-over");
+    const gameContainer = document.getElementById("game-container");
+    const pixelArtMaker = document.getElementById("pixel-art-maker");
+    const characterCanvas = document.getElementById("character");
+    const ctx = characterCanvas.getContext("2d");
+    const scoreElement = document.getElementById("score");
+
+    let gridSize = 16;
+    let pixels = [];
+    let currentColor = "black";
+    let gameInterval;
+    let isMouseDown = false;
+    let score = 0;
+    let spawnInterval = 2000;
+    let gameRunning = true;
+    let lastSpawnTime = 0;
+
+    function createGrid(size) {
+        grid.innerHTML = "";
+        grid.style.gridTemplateColumns = `repeat(${size}, 40px)`;
+        grid.style.gridTemplateRows = `repeat(${size}, 40px)`;
+        
+        pixels = [];
+        for (let i = 0; i < size * size; i++) {
+            const pixel = document.createElement("div");
+            pixel.classList.add("pixel");
+            pixel.addEventListener("mousedown", function() {
+                pixel.style.backgroundColor = currentColor;
+            });
+            pixel.addEventListener("mouseover", function() {
+                if (isMouseDown) {
+                    pixel.style.backgroundColor = currentColor;
+                }
+            });
+            grid.appendChild(pixel);
+            pixels.push(pixel);
+        }
+    }
+
+    document.addEventListener("mousedown", () => isMouseDown = true);
+    document.addEventListener("mouseup", () => isMouseDown = false);
+
+    createGrid(gridSize);
+
+    startButton.addEventListener("click", function() {
+        pixelArtMaker.style.display = "none";
+        gameContainer.style.display = "block";
+        transferToCanvas();
+        startGame();
+    });
+
+    restartButton.addEventListener("click", function() {
+        location.reload();
+    });
+
+    function transferToCanvas() {
+        const pixelSize = 3;
+        ctx.clearRect(0, 0, characterCanvas.width, characterCanvas.height);
+        pixels.forEach((pixel, index) => {
+            const x = (index % gridSize) * pixelSize;
+            const y = Math.floor(index / gridSize) * pixelSize;
+            ctx.fillStyle = pixel.style.backgroundColor || "white";
+            ctx.fillRect(x, y, pixelSize, pixelSize);
+        });
+    }
+
+    function startGame() {
+        let character = document.getElementById("character");
+        let isJumping = false;
+        let position = 0;
+        let gravity = 5;
+        let groundLevel = 50;
+        character.style.bottom = groundLevel + "px";
+
+        document.addEventListener("keydown", function(event) {
+            if (event.code === "Space" && !isJumping) {
+                isJumping = true;
+                let jumpHeight = 100;
+                let jumpSpeed = 10;
+                let jumpInterval = setInterval(() => {
+                    if (position >= jumpHeight) {
+                        clearInterval(jumpInterval);
+                        let fallInterval = setInterval(() => {
+                            if (position <= 0) {
+                                clearInterval(fallInterval);
+                                isJumping = false;
+                            }
+                            position -= gravity;
+                            character.style.bottom = (groundLevel + position) + "px";
+                        }, 20);
+                    }
+                    position += jumpSpeed;
+                    character.style.bottom = (groundLevel + position) + "px";
+                }, 20);
+            }
+        });
+
+        gameRunning = true;
+        gameInterval = setInterval(() => {
+            let now = Date.now();
+            if (now - lastSpawnTime > spawnInterval) {
+                createObstacle();
+                lastSpawnTime = now;
+            }
+        }, 100);
+    }
+
+    function createObstacle() {
+        if (!gameRunning) return;
+
+        console.log("Obstacle spawned!");
+
+        const obstacle = document.createElement("div");
+        obstacle.classList.add("obstacle");
+        gameContainer.appendChild(obstacle);
+
+        let obstaclePosition = 600;
+        let moveObstacle = setInterval(() => {
+            if (!gameRunning) {
+                clearInterval(moveObstacle);
+                return;
+            }
+
+            obstaclePosition -= 5;
+            obstacle.style.right = `${600 - obstaclePosition}px`;
+
+            checkCollision(obstacle, moveObstacle);
+
+            if (obstaclePosition < -20) {
+                clearInterval(moveObstacle);
+                gameContainer.removeChild(obstacle);
+                increaseScore();
+            }
+        }, 20);
+    }
+
+    function checkCollision(obstacle, moveObstacle) {
+        let character = document.getElementById("character");
+        let charRect = character.getBoundingClientRect();
+        let obsRect = obstacle.getBoundingClientRect();
+
+        if (
+            charRect.right > obsRect.left &&
+            charRect.left < obsRect.right &&
+            charRect.bottom > obsRect.top
+        ) {
+            console.log("Collision detected!");
+            clearInterval(moveObstacle);
+            gameOver();
+        }
+    }
+
+    function increaseScore() {
+        if (!gameRunning) return;
+
+        score += 1;
+        console.log(`Score updated: ${score}`);
+        scoreElement.textContent = `Score: ${score}`;
+        updateSpawnInterval();
+    }
+
+    function updateSpawnInterval() {
+        if (!gameRunning) return;
+
+        let newInterval = Math.max(1000, 2000 - score * 100);
+        if (newInterval < spawnInterval) {
+            spawnInterval = newInterval;
+            console.log(`Score: ${score}, Spawn Interval Updated: ${spawnInterval}`);
+        }
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        clearInterval(gameInterval);
+        gameOverText.style.display = "block";
+        restartButton.style.display = "block";
+
+        // Hentikan semua obstacles
+        let obstacles = document.querySelectorAll(".obstacle");
+        obstacles.forEach(obstacle => obstacle.remove());
+
+        console.log("Game Over!");
+    }
+});
+
+    </script>
+</body>
+</html>
